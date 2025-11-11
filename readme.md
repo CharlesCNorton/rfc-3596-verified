@@ -1,7 +1,9 @@
 # RFC 3596: DNS Extensions for IPv6
 
   **Author:** Charles Norton
+  
   **Date:** November 11, 2025
+  
   **License:** MIT
 
   Formal verification of RFC 3596 in Coq. Proves AAAA records and IPv6 reverse DNS mapping are mathematically correct.
