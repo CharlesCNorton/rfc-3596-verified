@@ -29,6 +29,7 @@
   Theorem AAAA_codec_stable : forall bs,
     wf_bytes bs -> encode_AAAA_rdata (decode_AAAA_rdata bs) = bs.
   AAAA RDATA encoding/decoding roundtrips exactly.
+```
 
   What This Guarantees
 
@@ -50,7 +51,8 @@
 
   Generates verified executable code.
 
-  Examples
+  ##Examples
+  ```
 
   AAAA Record
 
