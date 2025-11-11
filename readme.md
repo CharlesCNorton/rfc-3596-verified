@@ -68,7 +68,7 @@
   Example reverse_roundtrip :
     reverse_to_ipv6 (ipv6_to_reverse loopback) = Some (normalize128 loopback).
   Proof. reflexivity. Qed.
-
+```
   Part of Sammath Naur
 
   This is part of the Sammath Naur project—formal verification of 50+ internet RFCs:
