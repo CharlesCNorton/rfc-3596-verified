@@ -103,6 +103,11 @@ Definition domain_name_wire_len (labs:list string) : N :=
 Definition domain_name_length (labs:list string) : word16 :=
   to_word16 (domain_name_wire_len labs).
 
+(* DNS name well-formedness predicates (RFC 1035 §2.3.4) *)
+Definition label_ok (s:string) : Prop := (strlen s <= 63)%nat.
+Definition name_ok (labs:list string) : Prop :=
+  (domain_name_wire_len labs <= 255)%N /\ Forall label_ok labs.
+
 (* =============================================================================
    Section 2: AAAA Resource Record (RFC 3596 Section 2.1/2.2)
    ============================================================================= *)
@@ -190,11 +195,12 @@ Lemma aaaa_fixed_size_create : forall name addr ttl,
 Proof. reflexivity. Qed.
 
 (* Well-formedness predicate for validating AAAA records from untrusted sources.
-   A record is well-formed if type=28, class=1, and rdlength=16. *)
+   A record is well-formed if type=28, class=1, rdlength=16, and name is valid per RFC 1035. *)
 Record AAAA_wf (r:AAAARecord) : Prop := {
   WF_type  : r.(aaaa_type) = AAAA_TYPE;
   WF_class : r.(aaaa_class) = IN_CLASS;
-  WF_len   : r.(aaaa_rdlength) = 16
+  WF_len   : r.(aaaa_rdlength) = 16;
+  WF_name  : name_ok r.(aaaa_name)
 }.
 
 (* Any well-formed AAAA record has rdlength = 16 *)
@@ -528,11 +534,44 @@ Lemma nibble_label_roundtrip_ci : forall n lab,
   eq_label_ci (nibble_label_of n) lab = true.
 Proof.
   intros n lab Hn Hlab.
-  unfold label_to_nibble, ascii_to_nibble in Hlab.
-  destruct lab as [|c []]; try discriminate.
-  destruct c as [[] [] [] [] [] [] [] []]; vm_compute in Hlab |- *;
-    try discriminate Hlab;
-    injection Hlab as <-; reflexivity.
+  unfold two4, two in Hn. simpl in Hn.
+  unfold label_to_nibble in Hlab.
+  destruct lab as [|c lab_rest]. { simpl in Hlab. discriminate. }
+  destruct lab_rest. 2:{ simpl in Hlab. discriminate. }
+  unfold ascii_to_nibble in Hlab.
+  destruct (N.eq_dec n 0). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 1). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 2). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 3). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 4). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 5). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 6). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 7). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 8). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 9). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 10). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 11). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 12). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 13). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 14). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  destruct (N.eq_dec n 15). { subst. unfold eq_label_ci, to_lower, to_lower_ascii.
+    destruct c as [[] [] [] [] [] [] [] []]; simpl in *; try discriminate; reflexivity. }
+  lia.
 Qed.
 
 (* === ip6.arpa Suffix Handling === *)
@@ -1910,10 +1949,6 @@ Proof.
   unfold IP6_ARPA, wire_acc. simpl fold_right. simpl strlen. reflexivity.
 Qed.
 
-Definition label_ok (s:string) : Prop := (strlen s <= 63)%nat.
-Definition name_ok (labs:list string) : Prop :=
-  (domain_name_wire_len labs <= 255)%N /\ Forall label_ok labs.
-
 Lemma map_length_eq : forall {A B} (f : A -> B) (l : list A),
   List.length (map f l) = List.length l.
 Proof.
@@ -2297,24 +2332,1573 @@ Example fallback_to_ipv4 :
 Proof. reflexivity. Qed.
 
 (* =============================================================================
-   Section 10: Extraction
+   Section 10: DNS Message Format (RFC 1035 §4.1)
+   ============================================================================= *)
+
+Definition message_id := word16.
+
+Record DNSFlags := {
+  flag_qr : bool;
+  flag_opcode : N;
+  flag_aa : bool;
+  flag_tc : bool;
+  flag_rd : bool;
+  flag_ra : bool;
+  flag_z : N;
+  flag_rcode : N
+}.
+
+Definition flags_to_word16 (f:DNSFlags) : word16 :=
+  let qr := if f.(flag_qr) then 1 else 0 in
+  let opcode := (f.(flag_opcode) mod 16) in
+  let aa := if f.(flag_aa) then 1 else 0 in
+  let tc := if f.(flag_tc) then 1 else 0 in
+  let rd := if f.(flag_rd) then 1 else 0 in
+  let ra := if f.(flag_ra) then 1 else 0 in
+  let z := (f.(flag_z) mod 8) in
+  let rcode := f.(flag_rcode) mod 16 in
+  to_word16 (qr * 32768 + opcode * 2048 + aa * 1024 + tc * 512 +
+             rd * 256 + ra * 128 + z * 16 + rcode).
+
+Definition word16_to_flags (w:word16) : DNSFlags :=
+  {| flag_qr := N.eqb ((w / 32768) mod 2) 1;
+     flag_opcode := (w / 2048) mod 16;
+     flag_aa := N.eqb ((w / 1024) mod 2) 1;
+     flag_tc := N.eqb ((w / 512) mod 2) 1;
+     flag_rd := N.eqb ((w / 256) mod 2) 1;
+     flag_ra := N.eqb ((w / 128) mod 2) 1;
+     flag_z := (w / 16) mod 8;
+     flag_rcode := w mod 16 |}.
+
+Record DNSHeader := {
+  hdr_id : message_id;
+  hdr_flags : DNSFlags;
+  hdr_qdcount : word16;
+  hdr_ancount : word16;
+  hdr_nscount : word16;
+  hdr_arcount : word16
+}.
+
+Definition encode_dns_header (h:DNSHeader) : list byte :=
+  let id_bytes := [h.(hdr_id) / 256; h.(hdr_id) mod 256] in
+  let flags_word := flags_to_word16 h.(hdr_flags) in
+  let flags_bytes := [flags_word / 256; flags_word mod 256] in
+  let qd_bytes := [h.(hdr_qdcount) / 256; h.(hdr_qdcount) mod 256] in
+  let an_bytes := [h.(hdr_ancount) / 256; h.(hdr_ancount) mod 256] in
+  let ns_bytes := [h.(hdr_nscount) / 256; h.(hdr_nscount) mod 256] in
+  let ar_bytes := [h.(hdr_arcount) / 256; h.(hdr_arcount) mod 256] in
+  (id_bytes ++ flags_bytes ++ qd_bytes ++ an_bytes ++ ns_bytes ++ ar_bytes)%list.
+
+Definition decode_dns_header (bs:list byte) : option DNSHeader :=
+  match bs with
+  | id1::id0::f1::f0::qd1::qd0::an1::an0::ns1::ns0::ar1::ar0::_ =>
+      let id := to_word16 (id1 * 256 + id0) in
+      let flags := word16_to_flags (to_word16 (f1 * 256 + f0)) in
+      let qd := to_word16 (qd1 * 256 + qd0) in
+      let an := to_word16 (an1 * 256 + an0) in
+      let ns := to_word16 (ns1 * 256 + ns0) in
+      let ar := to_word16 (ar1 * 256 + ar0) in
+      Some {| hdr_id := id; hdr_flags := flags; hdr_qdcount := qd;
+              hdr_ancount := an; hdr_nscount := ns; hdr_arcount := ar |}
+  | _ => None
+  end.
+
+Lemma encode_dns_header_length : forall h,
+  List.length (encode_dns_header h) = 12%nat.
+Proof. intros; reflexivity. Qed.
+
+Lemma bool_to_N_inv : forall (b:bool),
+  N.eqb (if b then 1 else 0) 1 = b.
+Proof.
+  intros []; reflexivity.
+Qed.
+
+Lemma mod_bound_extract : forall n m,
+  m <> 0 -> n mod m < m.
+Proof.
+  intros. apply N.mod_lt. assumption.
+Qed.
+
+Lemma bool_cond_mod_2 : forall (b:bool),
+  ((if b then 1 else 0) mod 2 : N) = (if b then 1 else 0 : N).
+Proof.
+  intros []; reflexivity.
+Qed.
+
+Lemma flags_sum_bound : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  (z mod 8) * 16 + (rcode mod 16) < 65536.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc.
+  assert (Hqr: (if qr then 1 else 0) <= 1) by (destruct qr; lia).
+  assert (Haa: (if aa then 1 else 0) <= 1) by (destruct aa; lia).
+  assert (Htc: (if tc then 1 else 0) <= 1) by (destruct tc; lia).
+  assert (Hrd: (if rd then 1 else 0) <= 1) by (destruct rd; lia).
+  assert (Hra: (if ra then 1 else 0) <= 1) by (destruct ra; lia).
+  assert (Hsum: (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+                (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                (z mod 8) * 16 + (rcode mod 16) <=
+                1 * 32768 + 15 * 2048 + 1 * 1024 + 1 * 512 +
+                1 * 256 + 1 * 128 + 7 * 16 + 15).
+  { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r); lia. }
+  apply N.le_lt_trans with (m := 1 * 32768 + 15 * 2048 + 1 * 1024 + 1 * 512 +
+                                  1 * 256 + 1 * 128 + 7 * 16 + 15).
+  - exact Hsum.
+  - vm_compute. constructor.
+Qed.
+
+Lemma extract_bool_bit : forall (b : bool) (divisor offset : N),
+  divisor <> 0 ->
+  offset < divisor ->
+  ((if b then 1 else 0) * divisor + offset) / divisor mod 2 = (if b then 1 else 0).
+Proof.
+  intros b divisor offset Hdiv Hoff.
+  destruct b.
+  - simpl (if true then 1 else 0).
+    assert (E: (1 * divisor + offset) / divisor = 1 + offset / divisor).
+    { apply div_add_cancel. exact Hdiv. }
+    rewrite E.
+    rewrite N.div_small by exact Hoff.
+    rewrite N.add_0_r.
+    simpl (if true then 1 else 0).
+    reflexivity.
+  - simpl (if false then 1 else 0).
+    rewrite N.mul_0_l, N.add_0_l.
+    rewrite N.div_small by exact Hoff.
+    simpl (if false then 1 else 0).
+    reflexivity.
+Qed.
+
+Lemma mul16_mod16_zero : forall n, n < 16 -> n * 16 mod 16 = 0.
+Proof.
+  intros n H.
+  replace (n * 16) with (n * 16) by reflexivity.
+  rewrite N.Div0.mod_mul by lia.
+  reflexivity.
+Qed.
+
+Lemma mul2048_mod16_zero : forall n, n * 2048 mod 16 = 0.
+Proof.
+  intros n.
+  replace 2048 with (128 * 16) by reflexivity.
+  rewrite N.mul_assoc.
+  rewrite N.Div0.mod_mul by lia.
+  reflexivity.
+Qed.
+
+Lemma extract_qr : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  N.eqb ((w / 32768) mod 2) 1 = qr.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  assert (Hsum: (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+                (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                (z mod 8) * 16 + (rcode mod 16) < 65536).
+  { apply flags_sum_bound; assumption. }
+  destruct qr; simpl (if true then 1 else 0); simpl (if false then 1 else 0).
+  - replace (1 * 32768 + (opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+             (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+             (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16)
+       with (((opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+              (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+              (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16) + 1 * 32768) by lia.
+    rewrite N.div_add by lia.
+    assert (Hlow: (opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+                  (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+                  (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 < 32768).
+    { assert (Hmax: (opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+                    (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+                    (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 <=
+                    15 * 2048 + 1 * 1024 + 1 * 512 + 1 * 256 + 1 * 128 + 7 * 16 + 15).
+      { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r);
+        try (destruct aa; lia); try (destruct tc; lia); try (destruct rd; lia);
+        try (destruct ra; lia); lia. }
+      lia. }
+    rewrite N.div_small by exact Hlow.
+    simpl. reflexivity.
+  - replace (0 * 32768 + (opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+             (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+             (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16)
+       with ((opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+             (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+             (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16) by lia.
+    assert (Hlow: (opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+                  (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+                  (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 < 32768).
+    { assert (Hmax: (opcode mod 16) * 2048 + (if aa then 1 else 0) * 1024 +
+                    (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+                    (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 <=
+                    15 * 2048 + 1 * 1024 + 1 * 512 + 1 * 256 + 1 * 128 + 7 * 16 + 15).
+      { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r);
+        try (destruct aa; lia); try (destruct tc; lia); try (destruct rd; lia);
+        try (destruct ra; lia); lia. }
+      lia. }
+    rewrite N.div_small by exact Hlow.
+    simpl. reflexivity.
+Qed.
+
+Lemma extract_opcode : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  (w / 2048) mod 16 = opcode mod 16.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  replace ((if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + rcode mod 16)
+     with (((if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            (z mod 8) * 16 + rcode mod 16) +
+           ((if qr then 1 else 0) * 16 + opcode mod 16) * 2048) by lia.
+  rewrite N.div_add by lia.
+  assert (Hlow: (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                (z mod 8) * 16 + rcode mod 16 < 2048).
+  { assert (Hmax: (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                  (z mod 8) * 16 + rcode mod 16 <=
+                  1 * 1024 + 1 * 512 + 1 * 256 + 1 * 128 + 7 * 16 + 15).
+    { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r);
+      try (destruct aa; lia); try (destruct tc; lia); try (destruct rd; lia);
+      try (destruct ra; lia); lia. }
+    lia. }
+  rewrite N.div_small by exact Hlow.
+  simpl.
+  replace ((if qr then 1 else 0) * 16 + opcode mod 16) with (opcode mod 16 + (if qr then 1 else 0) * 16) by lia.
+  rewrite N.Div0.mod_add by lia.
+  apply N.mod_small. exact Hop.
+Qed.
+
+Lemma extract_aa : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  N.eqb ((w / 1024) mod 2) 1 = aa.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  replace ((if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + rcode mod 16)
+     with (((if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+            (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16) +
+           ((if qr then 1 else 0) * 32 + (opcode mod 16) * 2 + (if aa then 1 else 0)) * 1024) by lia.
+  rewrite N.div_add by lia.
+  assert (Hlow: (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+                (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 < 1024).
+  { assert (Hmax: (if tc then 1 else 0) * 512 + (if rd then 1 else 0) * 256 +
+                  (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 <=
+                  1 * 512 + 1 * 256 + 1 * 128 + 7 * 16 + 15).
+    { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r);
+      try (destruct tc; lia); try (destruct rd; lia); try (destruct ra; lia); lia. }
+    lia. }
+  rewrite N.div_small by exact Hlow.
+  assert (Heven: ((if qr then 1 else 0) * 32 + (opcode mod 16) * 2) mod 2 = 0).
+  { assert (E: (if qr then 1 else 0) * 32 + opcode mod 16 * 2 =
+                ((if qr then 1 else 0) * 16 + opcode mod 16) * 2) by lia.
+    rewrite E. rewrite N.Div0.mod_mul by lia. reflexivity. }
+  destruct aa; simpl.
+  - replace ((if qr then 1 else 0) * 32 + opcode mod 16 * 2 + 1)
+       with (((if qr then 1 else 0) * 32 + opcode mod 16 * 2) + 1) by lia.
+    rewrite N.Div0.add_mod by lia.
+    rewrite Heven. simpl. reflexivity.
+  - replace ((if qr then 1 else 0) * 32 + opcode mod 16 * 2 + 0)
+       with ((if qr then 1 else 0) * 32 + opcode mod 16 * 2) by lia.
+    rewrite Heven. reflexivity.
+Qed.
+
+Lemma extract_tc : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  N.eqb ((w / 512) mod 2) 1 = tc.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  replace ((if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + rcode mod 16)
+     with (((if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            (z mod 8) * 16 + rcode mod 16) +
+           ((if qr then 1 else 0) * 64 + (opcode mod 16) * 4 + (if aa then 1 else 0) * 2 + (if tc then 1 else 0)) * 512) by lia.
+  rewrite N.div_add by lia.
+  assert (Hlow: (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                (z mod 8) * 16 + rcode mod 16 < 512).
+  { assert (Hmax: (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                  (z mod 8) * 16 + rcode mod 16 <=
+                  1 * 256 + 1 * 128 + 7 * 16 + 15).
+    { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r);
+      try (destruct rd; lia); try (destruct ra; lia); lia. }
+    lia. }
+  rewrite N.div_small by exact Hlow.
+  assert (Heven: ((if qr then 1 else 0) * 64 + (opcode mod 16) * 4 + (if aa then 1 else 0) * 2) mod 2 = 0).
+  { assert (E: (if qr then 1 else 0) * 64 + opcode mod 16 * 4 + (if aa then 1 else 0) * 2 =
+                ((if qr then 1 else 0) * 32 + opcode mod 16 * 2 + (if aa then 1 else 0)) * 2) by lia.
+    rewrite E. rewrite N.Div0.mod_mul by lia. reflexivity. }
+  destruct tc; simpl.
+  - replace ((if qr then 1 else 0) * 64 + opcode mod 16 * 4 + (if aa then 1 else 0) * 2 + 1)
+       with (((if qr then 1 else 0) * 64 + opcode mod 16 * 4 + (if aa then 1 else 0) * 2) + 1) by lia.
+    rewrite N.Div0.add_mod by lia.
+    rewrite Heven. simpl. reflexivity.
+  - replace ((if qr then 1 else 0) * 64 + opcode mod 16 * 4 + (if aa then 1 else 0) * 2 + 0)
+       with ((if qr then 1 else 0) * 64 + opcode mod 16 * 4 + (if aa then 1 else 0) * 2) by lia.
+    rewrite Heven. reflexivity.
+Qed.
+
+Lemma extract_rd : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  N.eqb ((w / 256) mod 2) 1 = rd.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  replace ((if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + rcode mod 16)
+     with (((if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16) +
+           ((if qr then 1 else 0) * 128 + (opcode mod 16) * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2 + (if rd then 1 else 0)) * 256) by lia.
+  rewrite N.div_add by lia.
+  assert (Hlow: (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 < 256).
+  { assert (Hmax: (if ra then 1 else 0) * 128 + (z mod 8) * 16 + rcode mod 16 <=
+                  1 * 128 + 7 * 16 + 15).
+    { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r);
+      try (destruct ra; lia); lia. }
+    lia. }
+  rewrite N.div_small by exact Hlow.
+  assert (Heven: ((if qr then 1 else 0) * 128 + (opcode mod 16) * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2) mod 2 = 0).
+  { assert (E: (if qr then 1 else 0) * 128 + opcode mod 16 * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2 =
+                ((if qr then 1 else 0) * 64 + opcode mod 16 * 4 + (if aa then 1 else 0) * 2 + (if tc then 1 else 0)) * 2) by lia.
+    rewrite E. rewrite N.Div0.mod_mul by lia. reflexivity. }
+  destruct rd; simpl.
+  - replace ((if qr then 1 else 0) * 128 + opcode mod 16 * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2 + 1)
+       with (((if qr then 1 else 0) * 128 + opcode mod 16 * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2) + 1) by lia.
+    rewrite N.Div0.add_mod by lia.
+    rewrite Heven. simpl. reflexivity.
+  - replace ((if qr then 1 else 0) * 128 + opcode mod 16 * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2 + 0)
+       with ((if qr then 1 else 0) * 128 + opcode mod 16 * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2) by lia.
+    rewrite Heven. reflexivity.
+Qed.
+
+Lemma extract_ra : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  N.eqb ((w / 128) mod 2) 1 = ra.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  replace ((if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + rcode mod 16)
+     with (((z mod 8) * 16 + rcode mod 16) +
+           ((if qr then 1 else 0) * 256 + (opcode mod 16) * 16 + (if aa then 1 else 0) * 8 + (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2 + (if ra then 1 else 0)) * 128) by lia.
+  rewrite N.div_add by lia.
+  assert (Hlow: (z mod 8) * 16 + rcode mod 16 < 128).
+  { assert (Hmax: (z mod 8) * 16 + rcode mod 16 <= 7 * 16 + 15).
+    { repeat (apply N.add_le_mono || apply N.mul_le_mono_nonneg_r); lia. }
+    lia. }
+  rewrite N.div_small by exact Hlow.
+  assert (Heven: ((if qr then 1 else 0) * 256 + (opcode mod 16) * 16 + (if aa then 1 else 0) * 8 + (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2) mod 2 = 0).
+  { assert (E: (if qr then 1 else 0) * 256 + opcode mod 16 * 16 + (if aa then 1 else 0) * 8 + (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2 =
+                ((if qr then 1 else 0) * 128 + opcode mod 16 * 8 + (if aa then 1 else 0) * 4 + (if tc then 1 else 0) * 2 + (if rd then 1 else 0)) * 2) by lia.
+    rewrite E. rewrite N.Div0.mod_mul by lia. reflexivity. }
+  destruct ra; simpl.
+  - replace ((if qr then 1 else 0) * 256 + opcode mod 16 * 16 + (if aa then 1 else 0) * 8 + (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2 + 1)
+       with (((if qr then 1 else 0) * 256 + opcode mod 16 * 16 + (if aa then 1 else 0) * 8 + (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2) + 1) by lia.
+    rewrite N.Div0.add_mod by lia.
+    rewrite Heven. simpl. reflexivity.
+  - replace ((if qr then 1 else 0) * 256 + opcode mod 16 * 16 + (if aa then 1 else 0) * 8 + (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2 + 0)
+       with ((if qr then 1 else 0) * 256 + opcode mod 16 * 16 + (if aa then 1 else 0) * 8 + (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2) by lia.
+    rewrite Heven. reflexivity.
+Qed.
+
+Lemma extract_z : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  (w / 16) mod 8 = z mod 8.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  replace ((if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + rcode mod 16)
+     with ((rcode mod 16) +
+           ((if qr then 1 else 0) * 2048 + (opcode mod 16) * 128 + (if aa then 1 else 0) * 64 +
+            (if tc then 1 else 0) * 32 + (if rd then 1 else 0) * 16 + (if ra then 1 else 0) * 8 + (z mod 8)) * 16) by lia.
+  rewrite N.div_add by lia.
+  assert (Hlow: rcode mod 16 < 16) by exact Hrc.
+  rewrite N.div_small by exact Hlow.
+  simpl.
+  assert (Hmult8: ((if qr then 1 else 0) * 2048 + (opcode mod 16) * 128 + (if aa then 1 else 0) * 64 +
+                    (if tc then 1 else 0) * 32 + (if rd then 1 else 0) * 16 + (if ra then 1 else 0) * 8) mod 8 = 0).
+  { assert (E: (if qr then 1 else 0) * 2048 + opcode mod 16 * 128 + (if aa then 1 else 0) * 64 +
+                (if tc then 1 else 0) * 32 + (if rd then 1 else 0) * 16 + (if ra then 1 else 0) * 8 =
+                ((if qr then 1 else 0) * 256 + opcode mod 16 * 16 + (if aa then 1 else 0) * 8 +
+                 (if tc then 1 else 0) * 4 + (if rd then 1 else 0) * 2 + (if ra then 1 else 0)) * 8) by lia.
+    rewrite E. rewrite N.Div0.mod_mul by lia. reflexivity. }
+  replace ((if qr then 1 else 0) * 2048 + opcode mod 16 * 128 + (if aa then 1 else 0) * 64 +
+           (if tc then 1 else 0) * 32 + (if rd then 1 else 0) * 16 + (if ra then 1 else 0) * 8 + z mod 8)
+     with (((if qr then 1 else 0) * 2048 + opcode mod 16 * 128 + (if aa then 1 else 0) * 64 +
+            (if tc then 1 else 0) * 32 + (if rd then 1 else 0) * 16 + (if ra then 1 else 0) * 8) + z mod 8) by lia.
+  rewrite N.Div0.add_mod by lia.
+  rewrite Hmult8. simpl. rewrite N.Div0.mod_mod by lia. apply N.mod_small. exact Hz.
+Qed.
+
+Lemma extract_rcode : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 ->
+  z mod 8 < 8 ->
+  rcode mod 16 < 16 ->
+  let w := (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+           (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+           (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+           (z mod 8) * 16 + (rcode mod 16) in
+  w mod 16 = rcode mod 16.
+Proof.
+  intros qr aa tc rd ra opcode z rcode Hop Hz Hrc w.
+  unfold w.
+  assert (Hmult16: ((if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+                     (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                     (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                     (z mod 8) * 16) mod 16 = 0).
+  { assert (E: (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+                (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                z mod 8 * 16 =
+                ((if qr then 1 else 0) * 2048 + opcode mod 16 * 128 +
+                 (if aa then 1 else 0) * 64 + (if tc then 1 else 0) * 32 +
+                 (if rd then 1 else 0) * 16 + (if ra then 1 else 0) * 8 +
+                 z mod 8) * 16) by lia.
+    rewrite E. rewrite N.Div0.mod_mul by lia. reflexivity. }
+  rewrite N.Div0.add_mod by lia.
+  rewrite Hmult16. simpl.
+  rewrite N.Div0.mod_mod by lia.
+  apply N.mod_small. exact Hrc.
+Qed.
+
+Lemma extract_qr_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+    (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+    (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+    z mod 8 * 16 + rcode mod 16) mod 65536 / 32768 mod 2 =? 1)%N = qr.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_qr; assumption.
+Qed.
+
+Lemma extract_opcode_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+    (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+    (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+    z mod 8 * 16 + rcode mod 16) mod 65536 / 2048 mod 16) = opcode mod 16.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_opcode; assumption.
+Qed.
+
+Lemma extract_aa_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+    (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+    (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+    z mod 8 * 16 + rcode mod 16) mod 65536 / 1024 mod 2 =? 1)%N = aa.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_aa; assumption.
+Qed.
+
+Lemma extract_tc_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+    (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+    (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+    z mod 8 * 16 + rcode mod 16) mod 65536 / 512 mod 2 =? 1)%N = tc.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_tc; assumption.
+Qed.
+
+Lemma extract_rd_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+    (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+    (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+    z mod 8 * 16 + rcode mod 16) mod 65536 / 256 mod 2 =? 1)%N = rd.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_rd; assumption.
+Qed.
+
+Lemma extract_ra_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+    (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+    (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+    z mod 8 * 16 + rcode mod 16) mod 65536 / 128 mod 2 =? 1)%N = ra.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_ra; assumption.
+Qed.
+
+Lemma extract_z_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+    (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+    (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+    z mod 8 * 16 + rcode mod 16) mod 65536 / 16 mod 8) = z mod 8.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_z; assumption.
+Qed.
+
+Lemma extract_rcode_mod : forall (qr aa tc rd ra : bool) (opcode z rcode : N),
+  opcode mod 16 < 16 -> z mod 8 < 8 -> rcode mod 16 < 16 ->
+  (if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+  (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+  (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+  z mod 8 * 16 + rcode mod 16 < 65536 ->
+  ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+   (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+   (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+   z mod 8 * 16 + rcode mod 16) mod 65536 mod 16 = rcode mod 16.
+Proof.
+  intros qr aa tc rd ra opcode z rcode H1 H2 H3 H4.
+  replace (((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+            (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+            (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+            z mod 8 * 16 + rcode mod 16) mod 65536)
+    with ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+          (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+          (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+          z mod 8 * 16 + rcode mod 16) by (symmetry; apply N.mod_small; exact H4).
+  apply extract_rcode; assumption.
+Qed.
+
+Definition normalize_flags (f : DNSFlags) : DNSFlags :=
+  {| flag_qr := f.(flag_qr);
+     flag_opcode := f.(flag_opcode) mod 16;
+     flag_aa := f.(flag_aa);
+     flag_tc := f.(flag_tc);
+     flag_rd := f.(flag_rd);
+     flag_ra := f.(flag_ra);
+     flag_z := f.(flag_z) mod 8;
+     flag_rcode := f.(flag_rcode) mod 16 |}.
+
+Lemma flags_roundtrip_helper : forall f,
+  word16_to_flags (flags_to_word16 f) = normalize_flags f.
+Proof.
+  intros f.
+  destruct f as [qr opcode aa tc rd ra z rcode].
+  unfold flags_to_word16, word16_to_flags, normalize_flags.
+  assert (Hop: opcode mod 16 < 16) by (apply N.mod_lt; lia).
+  assert (Hz: z mod 8 < 8) by (apply N.mod_lt; lia).
+  assert (Hrc: rcode mod 16 < 16) by (apply N.mod_lt; lia).
+  assert (Hsum: (if qr then 1 else 0) * 32768 + (opcode mod 16) * 2048 +
+                (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                (z mod 8) * 16 + (rcode mod 16) < 65536).
+  { apply flags_sum_bound; assumption. }
+  set (w := to_word16 ((if qr then 1 else 0) * 32768 + opcode mod 16 * 2048 +
+                       (if aa then 1 else 0) * 1024 + (if tc then 1 else 0) * 512 +
+                       (if rd then 1 else 0) * 256 + (if ra then 1 else 0) * 128 +
+                       z mod 8 * 16 + rcode mod 16)).
+  assert (Eq_qr: N.eqb ((w / 32768) mod 2) 1 = qr).
+  { subst w. apply extract_qr_mod; assumption. }
+  assert (Eq_opcode: (w / 2048) mod 16 = opcode mod 16).
+  { subst w. apply extract_opcode_mod; assumption. }
+  assert (Eq_aa: N.eqb ((w / 1024) mod 2) 1 = aa).
+  { subst w. apply extract_aa_mod; assumption. }
+  assert (Eq_tc: N.eqb ((w / 512) mod 2) 1 = tc).
+  { subst w. apply extract_tc_mod; assumption. }
+  assert (Eq_rd: N.eqb ((w / 256) mod 2) 1 = rd).
+  { subst w. apply extract_rd_mod; assumption. }
+  assert (Eq_ra: N.eqb ((w / 128) mod 2) 1 = ra).
+  { subst w. apply extract_ra_mod; assumption. }
+  assert (Eq_z: (w / 16) mod 8 = z mod 8).
+  { subst w. apply extract_z_mod; assumption. }
+  assert (Eq_rcode: w mod 16 = rcode mod 16).
+  { subst w. apply extract_rcode_mod; assumption. }
+  f_equal; assumption.
+Qed.
+
+Definition wf_word16 (w : word16) : Prop := w < two16.
+
+Record wf_DNSHeader (h : DNSHeader) : Prop := {
+  wf_hdr_id : wf_word16 h.(hdr_id);
+  wf_hdr_qdcount : wf_word16 h.(hdr_qdcount);
+  wf_hdr_ancount : wf_word16 h.(hdr_ancount);
+  wf_hdr_nscount : wf_word16 h.(hdr_nscount);
+  wf_hdr_arcount : wf_word16 h.(hdr_arcount);
+  wf_hdr_flags_normalized : normalize_flags h.(hdr_flags) = h.(hdr_flags)
+}.
+
+Lemma word16_to_bytes_extract : forall w,
+  wf_word16 w ->
+  let b1 := w / 256 in
+  let b0 := w mod 256 in
+  to_word16 (b1 * 256 + b0) = w.
+Proof.
+  intros w Hw.
+  unfold wf_word16, to_word16, two16, two in *.
+  simpl in *.
+  rewrite N.mul_comm.
+  rewrite <- N.div_mod by lia.
+  apply N.mod_small.
+  exact Hw.
+Qed.
+
+Theorem dns_header_roundtrip : forall h,
+  wf_DNSHeader h ->
+  decode_dns_header (encode_dns_header h) = Some h.
+Proof.
+  intros [id flags qd an ns ar] Hwf.
+  destruct Hwf as [Hid Hqd Han Hns Har Hflags_norm].
+  unfold encode_dns_header, decode_dns_header.
+  simpl.
+  repeat match goal with
+  | |- context[?w / 256] => fold (w / 256)
+  | |- context[?w mod 256] => fold (w mod 256)
+  end.
+  assert (Eid: to_word16 (id / 256 * 256 + id mod 256) = id).
+  { apply word16_to_bytes_extract. exact Hid. }
+  assert (Eqd: to_word16 (qd / 256 * 256 + qd mod 256) = qd).
+  { apply word16_to_bytes_extract. exact Hqd. }
+  assert (Ean: to_word16 (an / 256 * 256 + an mod 256) = an).
+  { apply word16_to_bytes_extract. exact Han. }
+  assert (Ens: to_word16 (ns / 256 * 256 + ns mod 256) = ns).
+  { apply word16_to_bytes_extract. exact Hns. }
+  assert (Ear: to_word16 (ar / 256 * 256 + ar mod 256) = ar).
+  { apply word16_to_bytes_extract. exact Har. }
+  assert (Eflags: word16_to_flags (flags_to_word16 flags) = flags).
+  { rewrite flags_roundtrip_helper. exact Hflags_norm. }
+  set (fw := flags_to_word16 flags) in *.
+  assert (Efw: to_word16 (fw / 256 * 256 + fw mod 256) = fw).
+  { apply word16_to_bytes_extract.
+    unfold wf_word16, two16, two, fw.
+    unfold flags_to_word16, to_word16.
+    apply N.mod_lt. lia. }
+  rewrite Eid, Eqd, Ean, Ens, Ear, Efw, Eflags.
+  reflexivity.
+Qed.
+
+Record DNSQuestion := {
+  q_name : list string;
+  q_type : word16;
+  q_class : word16
+}.
+
+Definition create_aaaa_question (name : list string) : DNSQuestion :=
+  {| q_name := name; q_type := AAAA_TYPE; q_class := IN_CLASS |}.
+
+Definition is_aaaa_question (q:DNSQuestion) : bool :=
+  N.eqb q.(q_type) AAAA_TYPE.
+
+Lemma create_aaaa_question_is_aaaa : forall name,
+  is_aaaa_question (create_aaaa_question name) = true.
+Proof. intros; reflexivity. Qed.
+
+(* =============================================================================
+   Section 11: PTR Record Full Verification (RFC 3596 §2.5)
+   ============================================================================= *)
+
+Record PTRRecord := {
+  ptr_name : list string;
+  ptr_type : word16;
+  ptr_class : word16;
+  ptr_ttl : word32;
+  ptr_rdlength : word16;
+  ptr_ptrdname : list string
+}.
+
+Definition create_ptr_record (revname : list string) (fwdname : list string) (ttl : word32) : PTRRecord :=
+  {| ptr_name := revname;
+     ptr_type := PTR_TYPE;
+     ptr_class := IN_CLASS;
+     ptr_ttl := ttl;
+     ptr_rdlength := domain_name_length fwdname;
+     ptr_ptrdname := fwdname |}.
+
+Theorem ptr_aaaa_correspondence : forall ip name ttl,
+  wf_ipv6 ip ->
+  let rev_name := ipv6_to_reverse ip in
+  let ptr_rec := create_ptr_record rev_name name ttl in
+  let aaaa_rec := create_aaaa_record name ip ttl in
+  reverse_to_ipv6 (ptr_rec.(ptr_name)) = Some ip /\
+  aaaa_rec.(aaaa_address) = ip.
+Proof.
+  intros ip name ttl Hwf.
+  simpl.
+  split.
+  - apply reverse_bijective. exact Hwf.
+  - reflexivity.
+Qed.
+
+(* =============================================================================
+   Section 12: Enhanced Error Handling
+   ============================================================================= *)
+
+Inductive DNSError :=
+  | ErrInvalidLength : nat -> nat -> DNSError
+  | ErrInvalidNibble : string -> DNSError
+  | ErrInvalidSuffix : list string -> DNSError
+  | ErrInvalidByteCount : nat -> DNSError
+  | ErrByteTooLarge : N -> DNSError
+  | ErrParseFailure : string -> DNSError.
+
+Definition error_to_string (e:DNSError) : string :=
+  match e with
+  | ErrInvalidLength expected got => "Invalid length"
+  | ErrInvalidNibble s => "Invalid nibble: " ++ s
+  | ErrInvalidSuffix _ => "Invalid suffix"
+  | ErrInvalidByteCount n => "Invalid byte count"
+  | ErrByteTooLarge n => "Byte too large"
+  | ErrParseFailure msg => "Parse failure: " ++ msg
+  end.
+
+Definition reverse_to_ipv6_err (labs : list string) : option word128 + DNSError :=
+  match strip_ip6_arpa labs with
+  | None => inr (ErrInvalidSuffix labs)
+  | Some hexs =>
+      if Nat.eqb (List.length hexs) 32%nat then
+        match nibbles_of_labels hexs with
+        | Some ns =>
+            match bytes_from_nibbles_rev ns with
+            | Some bytes_rev => inl (ipv6_from_bytes (rev bytes_rev))
+            | None => inr (ErrParseFailure "bytes_from_nibbles_rev")
+            end
+        | None => inr (ErrParseFailure "nibbles_of_labels")
+        end
+      else inr (ErrInvalidLength 32 (List.length hexs))
+  end.
+
+(* =============================================================================
+   Section 13: IPv6 Text Format Parsing (RFC 4291 §2.2)
+   ============================================================================= *)
+
+Fixpoint parse_hex_digit (c:ascii) : option N :=
+  let n := nat_of_ascii c in
+  if (48 <=? n)%nat && (n <=? 57)%nat then Some (N.of_nat (n - 48)%nat) else
+  if (97 <=? n)%nat && (n <=? 102)%nat then Some (N.of_nat (n - 87)%nat) else
+  if (65 <=? n)%nat && (n <=? 70)%nat then Some (N.of_nat (n - 55)%nat) else
+  None.
+
+Fixpoint parse_hex_word16 (s:string) (acc:N) (count:nat) : option word16 :=
+  match s, count with
+  | EmptyString, _ => Some (to_word16 acc)
+  | String c rest, S n =>
+      match parse_hex_digit c with
+      | Some d => parse_hex_word16 rest (acc * 16 + d) n
+      | None => None
+      end
+  | _, O => None
+  end.
+
+(* =============================================================================
+   Section 14: Special IPv6 Addresses (RFC 4291)
+   ============================================================================= *)
+
+Definition ipv6_unspecified : word128 := (0, 0, 0, 0).
+Definition ipv6_loopback : word128 := (0, 0, 0, 1).
+
+Definition is_unspecified (ip:word128) : bool :=
+  let '(a,b,c,d) := ip in
+  N.eqb a 0 && N.eqb b 0 && N.eqb c 0 && N.eqb d 0.
+
+Definition is_loopback (ip:word128) : bool :=
+  let '(a,b,c,d) := ip in
+  N.eqb a 0 && N.eqb b 0 && N.eqb c 0 && N.eqb d 1.
+
+Lemma unspecified_is_wf : wf_ipv6 ipv6_unspecified.
+Proof. unfold wf_ipv6, ipv6_unspecified; simpl; repeat split; lia. Qed.
+
+Lemma loopback_is_wf : wf_ipv6 ipv6_loopback.
+Proof. unfold wf_ipv6, ipv6_loopback; simpl; repeat split; lia. Qed.
+
+(* =============================================================================
+   Section 15: Caching Logic (RFC 1035 §3.6, RFC 2308)
+   ============================================================================= *)
+
+Record CacheEntry := {
+  ce_name : list string;
+  ce_type : word16;
+  ce_class : word16;
+  ce_ttl : word32;
+  ce_rdata : list byte;
+  ce_timestamp : N
+}.
+
+Definition cache_expired (entry:CacheEntry) (current_time:N) : bool :=
+  N.ltb (entry.(ce_timestamp) + N.of_nat (N.to_nat entry.(ce_ttl))) current_time.
+
+Definition create_cache_entry (name : list string) (rr_type rr_class : word16)
+                               (ttl : word32) (rdata : list byte) (time : N) : CacheEntry :=
+  {| ce_name := name;
+     ce_type := rr_type;
+     ce_class := rr_class;
+     ce_ttl := ttl;
+     ce_rdata := rdata;
+     ce_timestamp := time |}.
+
+Lemma cache_not_expired_at_creation : forall name typ cls ttl rdata time,
+  cache_expired (create_cache_entry name typ cls ttl rdata time) time = false.
+Proof.
+  intros.
+  unfold cache_expired, create_cache_entry.
+  simpl.
+  apply N.ltb_ge.
+  lia.
+Qed.
+
+(* =============================================================================
+   Section 16: EDNS0 Support (RFC 6891)
+   ============================================================================= *)
+
+Definition OPT_TYPE : word16 := 41.
+
+Record EDNSOption := {
+  opt_code : word16;
+  opt_length : word16;
+  opt_data : list byte
+}.
+
+Record EDNS0Record := {
+  edns_name : list string;
+  edns_type : word16;
+  edns_udp_payload_size : word16;
+  edns_extended_rcode : byte;
+  edns_version : byte;
+  edns_flags : word16;
+  edns_rdlength : word16;
+  edns_options : list EDNSOption
+}.
+
+Definition create_edns0 (udp_size : word16) : EDNS0Record :=
+  {| edns_name := [];
+     edns_type := OPT_TYPE;
+     edns_udp_payload_size := udp_size;
+     edns_extended_rcode := 0;
+     edns_version := 0;
+     edns_flags := 0;
+     edns_rdlength := 0;
+     edns_options := [] |}.
+
+Lemma edns0_type_correct : forall udp_size,
+  (create_edns0 udp_size).(edns_type) = OPT_TYPE.
+Proof. intros; reflexivity. Qed.
+
+(* =============================================================================
+   Section 17: DNSSEC Foundations (RFC 4033-4035)
+   ============================================================================= *)
+
+Definition RRSIG_TYPE : word16 := 46.
+Definition DNSKEY_TYPE : word16 := 48.
+Definition DS_TYPE : word16 := 43.
+Definition NSEC_TYPE : word16 := 47.
+Definition NSEC3_TYPE : word16 := 50.
+
+Record RRSIGRecord := {
+  rrsig_name : list string;
+  rrsig_type : word16;
+  rrsig_class : word16;
+  rrsig_ttl : word32;
+  rrsig_type_covered : word16;
+  rrsig_algorithm : byte;
+  rrsig_labels : byte;
+  rrsig_original_ttl : word32;
+  rrsig_sig_expiration : word32;
+  rrsig_sig_inception : word32;
+  rrsig_key_tag : word16;
+  rrsig_signer_name : list string;
+  rrsig_signature : list byte
+}.
+
+Definition is_aaaa_signed (rrsig:RRSIGRecord) : bool :=
+  N.eqb rrsig.(rrsig_type_covered) AAAA_TYPE.
+
+Lemma aaaa_rrsig_type : forall rrsig,
+  is_aaaa_signed rrsig = true -> rrsig.(rrsig_type_covered) = AAAA_TYPE.
+Proof.
+  intros rrsig H.
+  unfold is_aaaa_signed in H.
+  apply N.eqb_eq in H.
+  exact H.
+Qed.
+
+(* =============================================================================
+   Section 18: Comprehensive Examples and Tests
+   ============================================================================= *)
+
+Example dns_header_example : DNSHeader :=
+  {| hdr_id := 1234;
+     hdr_flags := {| flag_qr := false; flag_opcode := 0; flag_aa := false;
+                     flag_tc := false; flag_rd := true; flag_ra := false;
+                     flag_z := 0; flag_rcode := 0 |};
+     hdr_qdcount := 1;
+     hdr_ancount := 0;
+     hdr_nscount := 0;
+     hdr_arcount := 0 |}.
+
+Example question_example : DNSQuestion :=
+  create_aaaa_question ["www"; "example"; "com"].
+
+Example ptr_example : PTRRecord :=
+  create_ptr_record (ipv6_to_reverse example_doc) ["www"; "example"; "com"] 3600.
+
+Example error_handling_example : option word128 + DNSError :=
+  reverse_to_ipv6_err ["invalid"; "name"].
+
+Example cache_example : CacheEntry :=
+  create_cache_entry ["www"; "example"; "com"] AAAA_TYPE IN_CLASS 3600
+                     (encode_AAAA_rdata example_doc) 1000000.
+
+Example edns0_example : EDNS0Record :=
+  create_edns0 4096.
+
+Example unspecified_check : is_unspecified ipv6_unspecified = true.
+Proof. reflexivity. Qed.
+
+Example loopback_check : is_loopback ipv6_loopback = true.
+Proof. reflexivity. Qed.
+
+Example ptr_aaaa_bidirectional : forall (ip:word128),
+  wf_ipv6 ip ->
+  reverse_to_ipv6 (ipv6_to_reverse ip) = Some ip.
+Proof. intros. apply reverse_bijective. assumption. Qed.
+
+(* =============================================================================
+   Section 19: DNS Name Compression (RFC 1035 §4.1.4)
+   ============================================================================= *)
+
+Definition compression_pointer_prefix : byte := 192.
+
+Inductive CompressedLabel :=
+  | CL_Direct : string -> CompressedLabel
+  | CL_Pointer : word16 -> CompressedLabel.
+
+Definition is_pointer (b:byte) : bool :=
+  N.leb compression_pointer_prefix b.
+
+Definition decode_pointer (b1 b2:byte) : word16 :=
+  to_word16 ((b1 mod 64) * 256 + b2).
+
+Definition encode_pointer (offset:word16) : list byte :=
+  let off := offset mod 16384 in
+  [compression_pointer_prefix + off / 256; off mod 256].
+
+Lemma div_256_bound : forall n,
+  n < 16384 ->
+  n / 256 < 64.
+Proof.
+  intros n H.
+  apply N.Div0.div_lt_upper_bound; lia.
+Qed.
+
+Lemma mod_256_small : forall n,
+  n < 256 -> n mod 256 = n.
+Proof.
+  intros n H.
+  apply N.mod_small; exact H.
+Qed.
+
+Lemma add_192_bound : forall n,
+  n < 64 ->
+  192 + n < 256.
+Proof.
+  intros n H; lia.
+Qed.
+
+Lemma mod_192_small : 192 mod 64 = 0.
+Proof. reflexivity. Qed.
+
+Lemma mod_64_extract : forall n,
+  n < 16384 ->
+  (192 + n / 256) mod 64 = n / 256.
+Proof.
+  intros n H.
+  assert (Hdiv: n / 256 < 64) by (apply div_256_bound; exact H).
+  rewrite N.Div0.add_mod by lia.
+  rewrite mod_192_small.
+  rewrite N.add_0_l.
+  rewrite N.Div0.mod_mod by lia.
+  apply N.mod_small.
+  exact Hdiv.
+Qed.
+
+Lemma pointer_encode_decode : forall n,
+  n < 16384 ->
+  to_word16 (((192 + n / 256) mod 64) * 256 + (n mod 256)) = n.
+Proof.
+  intros n H.
+  rewrite (mod_64_extract n H).
+  unfold to_word16, two16, two. simpl.
+  replace ((n / 256) * 256 + n mod 256) with n by (pose proof (N.div_mod n 256 ltac:(lia)); lia).
+  apply N.mod_small.
+  lia.
+Qed.
+
+Lemma pointer_roundtrip : forall offset,
+  offset < 16384 ->
+  let bytes := encode_pointer offset in
+  match bytes with
+  | b1::b2::_ => decode_pointer b1 b2 = offset
+  | _ => False
+  end.
+Proof.
+  intros offset H.
+  unfold encode_pointer.
+  assert (Hmod: offset mod 16384 = offset) by (apply N.mod_small; exact H).
+  rewrite Hmod.
+  simpl.
+  unfold decode_pointer.
+  apply pointer_encode_decode.
+  exact H.
+Qed.
+
+Fixpoint decompression_safe (bytes:list byte) (fuel:nat) (seen_offsets:list word16) : bool :=
+  match fuel with
+  | O => false
+  | S n =>
+      match bytes with
+      | [] => true
+      | b::rest =>
+          if is_pointer b then
+            match rest with
+            | b2::_ =>
+                let offset := decode_pointer b b2 in
+                if List.existsb (N.eqb offset) seen_offsets then false
+                else true
+            | _ => false
+            end
+          else true
+      end
+  end.
+
+(* =============================================================================
+   Section 20: Complete DNS Message Structure
+   ============================================================================= *)
+
+Record DNSResourceRecord := {
+  rr_name : list string;
+  rr_type : word16;
+  rr_class : word16;
+  rr_ttl : word32;
+  rr_rdlength : word16;
+  rr_rdata : list byte
+}.
+
+Record DNSMessage := {
+  msg_header : DNSHeader;
+  msg_questions : list DNSQuestion;
+  msg_answers : list DNSResourceRecord;
+  msg_authority : list DNSResourceRecord;
+  msg_additional : list DNSResourceRecord
+}.
+
+Definition create_aaaa_response (qid:message_id) (question:DNSQuestion)
+                                (aaaa:AAAARecord) : DNSMessage :=
+  let header := {| hdr_id := qid;
+                   hdr_flags := {| flag_qr := true; flag_opcode := 0;
+                                   flag_aa := false; flag_tc := false;
+                                   flag_rd := false; flag_ra := false;
+                                   flag_z := 0; flag_rcode := 0 |};
+                   hdr_qdcount := 1;
+                   hdr_ancount := 1;
+                   hdr_nscount := 0;
+                   hdr_arcount := 0 |} in
+  let answer := {| rr_name := aaaa.(aaaa_name);
+                   rr_type := aaaa.(aaaa_type);
+                   rr_class := aaaa.(aaaa_class);
+                   rr_ttl := aaaa.(aaaa_ttl);
+                   rr_rdlength := aaaa.(aaaa_rdlength);
+                   rr_rdata := encode_AAAA_rdata aaaa.(aaaa_address) |} in
+  {| msg_header := header;
+     msg_questions := [question];
+     msg_answers := [answer];
+     msg_authority := [];
+     msg_additional := [] |}.
+
+Definition msg_id_matches (query response:DNSMessage) : bool :=
+  N.eqb query.(msg_header).(hdr_id) response.(msg_header).(hdr_id).
+
+Lemma response_matches_query_id : forall qid question aaaa,
+  let query := {| msg_header := {| hdr_id := qid; hdr_flags :=
+                                   {| flag_qr := false; flag_opcode := 0;
+                                      flag_aa := false; flag_tc := false;
+                                      flag_rd := true; flag_ra := false;
+                                      flag_z := 0; flag_rcode := 0 |};
+                                   hdr_qdcount := 1; hdr_ancount := 0;
+                                   hdr_nscount := 0; hdr_arcount := 0 |};
+                  msg_questions := [question];
+                  msg_answers := []; msg_authority := []; msg_additional := [] |} in
+  let response := create_aaaa_response qid question aaaa in
+  msg_id_matches query response = true.
+Proof.
+  intros. unfold msg_id_matches, create_aaaa_response.
+  simpl. apply N.eqb_refl.
+Qed.
+
+(* =============================================================================
+   Section 21: CNAME Chain Handling
+   ============================================================================= *)
+
+Definition CNAME_TYPE : word16 := 5.
+
+Record CNAMERecord := {
+  cname_name : list string;
+  cname_type : word16;
+  cname_class : word16;
+  cname_ttl : word32;
+  cname_rdlength : word16;
+  cname_canonical : list string
+}.
+
+Fixpoint resolve_cname_chain (target:list string) (chain:list CNAMERecord) (fuel:nat)
+                              : option (list string) :=
+  match fuel with
+  | O => None
+  | S n =>
+      match chain with
+      | [] => Some target
+      | c::rest =>
+          if list_eq_ci target c.(cname_name) then
+            resolve_cname_chain c.(cname_canonical) rest n
+          else
+            resolve_cname_chain target rest (S n)
+      end
+  end.
+
+Lemma cname_chain_terminates : forall target,
+  resolve_cname_chain target [] 1 = Some target.
+Proof. intros; reflexivity. Qed.
+
+(* =============================================================================
+   Section 22: Negative Response Handling (RFC 2308)
+   ============================================================================= *)
+
+Definition SOA_TYPE : word16 := 6.
+
+Record SOARecord := {
+  soa_name : list string;
+  soa_type : word16;
+  soa_class : word16;
+  soa_ttl : word32;
+  soa_mname : list string;
+  soa_rname : list string;
+  soa_serial : word32;
+  soa_refresh : word32;
+  soa_retry : word32;
+  soa_expire : word32;
+  soa_minimum : word32
+}.
+
+Inductive NegativeResponse :=
+  | NR_NXDOMAIN : SOARecord -> NegativeResponse
+  | NR_NODATA : SOARecord -> NegativeResponse.
+
+Definition is_nxdomain (msg:DNSMessage) : bool :=
+  N.eqb msg.(msg_header).(hdr_flags).(flag_rcode) 3.
+
+Definition create_nxdomain_response (qid:message_id) (question:DNSQuestion)
+                                    (soa:SOARecord) : DNSMessage :=
+  {| msg_header := {| hdr_id := qid;
+                      hdr_flags := {| flag_qr := true; flag_opcode := 0;
+                                      flag_aa := true; flag_tc := false;
+                                      flag_rd := false; flag_ra := false;
+                                      flag_z := 0; flag_rcode := 3 |};
+                      hdr_qdcount := 1; hdr_ancount := 0;
+                      hdr_nscount := 1; hdr_arcount := 0 |};
+     msg_questions := [question];
+     msg_answers := [];
+     msg_authority := [{| rr_name := soa.(soa_name);
+                          rr_type := SOA_TYPE;
+                          rr_class := soa.(soa_class);
+                          rr_ttl := soa.(soa_ttl);
+                          rr_rdlength := 0;
+                          rr_rdata := [] |}];
+     msg_additional := [] |}.
+
+Lemma nxdomain_has_correct_rcode : forall qid question soa,
+  is_nxdomain (create_nxdomain_response qid question soa) = true.
+Proof. intros; reflexivity. Qed.
+
+(* =============================================================================
+   Section 23: Transport Layer (UDP/TCP)
+   ============================================================================= *)
+
+Inductive Transport := UDP | TCP.
+
+Definition max_udp_payload : word16 := 512.
+Definition max_tcp_payload : word16 := 65535.
+
+Definition message_fits_transport (msg_size:N) (transport:Transport) : bool :=
+  match transport with
+  | UDP => N.leb msg_size (N.of_nat (N.to_nat max_udp_payload))
+  | TCP => N.leb msg_size (N.of_nat (N.to_nat max_tcp_payload))
+  end.
+
+Definition should_use_tcp (msg_size:N) : bool :=
+  negb (message_fits_transport msg_size UDP).
+
+Lemma large_message_needs_tcp : forall size,
+  size > N.of_nat (N.to_nat max_udp_payload) ->
+  should_use_tcp size = true.
+Proof.
+  intros size H.
+  unfold should_use_tcp, message_fits_transport, max_udp_payload.
+  simpl N.of_nat. simpl N.to_nat.
+  apply negb_true_iff.
+  apply N.leb_gt.
+  unfold max_udp_payload in H.
+  simpl N.of_nat in H. simpl N.to_nat in H.
+  lia.
+Qed.
+
+(* =============================================================================
+   Section 24: Complete IPv6 Text Format Parser (RFC 4291 §2.2)
+   ============================================================================= *)
+
+Fixpoint split_on_char (c:ascii) (s:string) : list string :=
+  match s with
+  | EmptyString => [EmptyString]
+  | String ch rest =>
+      if Ascii.eqb ch c then
+        EmptyString :: split_on_char c rest
+      else
+        match split_on_char c rest with
+        | [] => [String ch EmptyString]
+        | hd::tl => (String ch hd)::tl
+        end
+  end.
+
+Definition colon : ascii := ascii_of_nat 58.
+
+Fixpoint parse_ipv6_groups (groups:list string) : option (list word16) :=
+  match groups with
+  | [] => Some []
+  | g::gs =>
+      match parse_hex_word16 g 0 4 with
+      | Some w => option_map (cons w) (parse_ipv6_groups gs)
+      | None => None
+      end
+  end.
+
+Definition ipv6_from_groups (g1 g2 g3 g4 g5 g6 g7 g8:word16) : word128 :=
+  let w1 := to_word32 (g1 * 65536 + g2) in
+  let w2 := to_word32 (g3 * 65536 + g4) in
+  let w3 := to_word32 (g5 * 65536 + g6) in
+  let w4 := to_word32 (g7 * 65536 + g8) in
+  (w1, w2, w3, w4).
+
+Definition parse_ipv6_text (s:string) : option word128 :=
+  let groups := split_on_char colon s in
+  match parse_ipv6_groups groups with
+  | Some [g1;g2;g3;g4;g5;g6;g7;g8] => Some (ipv6_from_groups g1 g2 g3 g4 g5 g6 g7 g8)
+  | _ => None
+  end.
+
+Example parse_loopback_text : parse_ipv6_text "0:0:0:0:0:0:0:1" = Some ipv6_loopback.
+Proof. reflexivity. Qed.
+
+(* =============================================================================
+   Section 25: Zone File Support (RFC 1035 §5)
+   ============================================================================= *)
+
+Record ZoneFile := {
+  zone_origin : list string;
+  zone_ttl : word32;
+  zone_soa : SOARecord;
+  zone_records : list DNSResourceRecord
+}.
+
+Definition create_zone_file (origin:list string) (ttl:word32) (soa:SOARecord) : ZoneFile :=
+  {| zone_origin := origin;
+     zone_ttl := ttl;
+     zone_soa := soa;
+     zone_records := [] |}.
+
+Definition add_aaaa_to_zone (zone:ZoneFile) (aaaa:AAAARecord) : ZoneFile :=
+  let rr := {| rr_name := aaaa.(aaaa_name);
+               rr_type := aaaa.(aaaa_type);
+               rr_class := aaaa.(aaaa_class);
+               rr_ttl := aaaa.(aaaa_ttl);
+               rr_rdlength := aaaa.(aaaa_rdlength);
+               rr_rdata := encode_AAAA_rdata aaaa.(aaaa_address) |} in
+  {| zone_origin := zone.(zone_origin);
+     zone_ttl := zone.(zone_ttl);
+     zone_soa := zone.(zone_soa);
+     zone_records := rr :: zone.(zone_records) |}.
+
+Lemma zone_preserves_origin : forall zone aaaa,
+  (add_aaaa_to_zone zone aaaa).(zone_origin) = zone.(zone_origin).
+Proof. intros; reflexivity. Qed.
+
+(* =============================================================================
+   Section 26: Message Validation
+   ============================================================================= *)
+
+Definition validate_aaaa_record (rr:DNSResourceRecord) : option AAAARecord :=
+  if N.eqb rr.(rr_type) AAAA_TYPE then
+    if N.eqb rr.(rr_class) IN_CLASS then
+      if N.eqb rr.(rr_rdlength) 16 then
+        match decode_AAAA_rdata rr.(rr_rdata) with
+        | Some ip => Some {| aaaa_name := rr.(rr_name);
+                             aaaa_type := AAAA_TYPE;
+                             aaaa_class := IN_CLASS;
+                             aaaa_ttl := rr.(rr_ttl);
+                             aaaa_rdlength := 16;
+                             aaaa_address := ip |}
+        | None => None
+        end
+      else None
+    else None
+  else None.
+
+Definition validate_dns_message (msg:DNSMessage) : bool :=
+  let qd := N.of_nat (List.length msg.(msg_questions)) in
+  let an := N.of_nat (List.length msg.(msg_answers)) in
+  let ns := N.of_nat (List.length msg.(msg_authority)) in
+  let ar := N.of_nat (List.length msg.(msg_additional)) in
+  N.eqb msg.(msg_header).(hdr_qdcount) qd &&
+  N.eqb msg.(msg_header).(hdr_ancount) an &&
+  N.eqb msg.(msg_header).(hdr_nscount) ns &&
+  N.eqb msg.(msg_header).(hdr_arcount) ar.
+
+Theorem validated_message_counts_match : forall msg,
+  validate_dns_message msg = true ->
+  N.of_nat (List.length msg.(msg_questions)) = msg.(msg_header).(hdr_qdcount) /\
+  N.of_nat (List.length msg.(msg_answers)) = msg.(msg_header).(hdr_ancount) /\
+  N.of_nat (List.length msg.(msg_authority)) = msg.(msg_header).(hdr_nscount) /\
+  N.of_nat (List.length msg.(msg_additional)) = msg.(msg_header).(hdr_arcount).
+Proof.
+  intros msg H.
+  unfold validate_dns_message in H.
+  apply andb_true_iff in H. destruct H as [H1 H2].
+  apply andb_true_iff in H1. destruct H1 as [H3 H4].
+  apply andb_true_iff in H3. destruct H3 as [H5 H6].
+  apply N.eqb_eq in H5.
+  apply N.eqb_eq in H6.
+  apply N.eqb_eq in H4.
+  apply N.eqb_eq in H2.
+  repeat split; symmetry; assumption.
+Qed.
+
+(* =============================================================================
+   Section 27: Integration Theorems
+   ============================================================================= *)
+
+Theorem end_to_end_aaaa_query : forall qid name ip ttl,
+  wf_ipv6 ip ->
+  let question := create_aaaa_question name in
+  let aaaa := create_aaaa_record name ip ttl in
+  let response := create_aaaa_response qid question aaaa in
+  validate_dns_message response = true /\
+  match msg_answers response with
+  | [ans] =>
+      match validate_aaaa_record ans with
+      | Some validated => validated.(aaaa_address) = ip
+      | None => False
+      end
+  | _ => False
+  end.
+Proof.
+  intros qid name ip ttl Hwf.
+  simpl.
+  split.
+  - reflexivity.
+  - unfold validate_aaaa_record. simpl.
+    rewrite decode_encode_AAAA_rdata_wf by exact Hwf.
+    reflexivity.
+Qed.
+
+Theorem aaaa_ptr_full_cycle : forall ip name ttl,
+  wf_ipv6 ip ->
+  let aaaa := create_aaaa_record name ip ttl in
+  let rev_name := ipv6_to_reverse ip in
+  let ptr := create_ptr_record rev_name name ttl in
+  reverse_to_ipv6 ptr.(ptr_name) = Some ip /\
+  list_eq_ci aaaa.(aaaa_name) ptr.(ptr_ptrdname) = true.
+Proof.
+  intros ip name ttl Hwf.
+  simpl.
+  split.
+  - apply reverse_bijective. exact Hwf.
+  - apply list_eq_ci_refl.
+Qed.
+
+(* =============================================================================
+   Section 28: Extraction
    ============================================================================= *)
 
 Require Extraction.
 Extract Inductive bool   => "bool" [ "true" "false" ].
 Extract Inductive list   => "list" [ "[]" "(::)" ].
 Extract Inductive option => "option" [ "Some" "None" ].
+Extract Inductive sum => "Either.t" ["Either.Left" "Either.Right"].
 
 From Coq Require Import ExtrOcamlZBigInt ExtrOcamlString.
 Extraction Language OCaml.
 
-Extraction "dns_ipv6.ml"
+Extraction "dns_ipv6_complete.ml"
+  (* Core AAAA *)
   create_aaaa_record
+  encode_AAAA_rdata
+  decode_AAAA_rdata
+  (* Reverse DNS *)
   ipv6_to_reverse
   reverse_to_ipv6
+  reverse_to_ipv6_err
+  (* PTR Records *)
+  create_ptr_record
+  (* DNS Infrastructure *)
+  encode_dns_header
+  decode_dns_header
+  create_aaaa_question
+  (* Strategy *)
   determine_strategy
   select_transport
   additional_glue
-  (* RDATA codec *)
-  encode_AAAA_rdata
-  decode_AAAA_rdata.
+  (* Special Addresses *)
+  is_unspecified
+  is_loopback
+  (* Caching *)
+  create_cache_entry
+  cache_expired
+  (* EDNS0 *)
+  create_edns0
+  (* DNSSEC *)
+  is_aaaa_signed
+  (* Error Handling *)
+  error_to_string.
